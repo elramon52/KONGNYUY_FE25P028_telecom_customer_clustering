@@ -1,0 +1,4 @@
+cluster_id,cluster_name,primary_insight,marketing_action,retention_strategy
+0,Premium Loyal,Long-tenure loyal customers; High spenders,Premium upselling and loyalty rewards,"Loyalty rewards: referral bonuses, exclusive benefits"
+1,Budget Established,Low churn risk (7%); Price-sensitive; Basic service users,Cross-selling campaign for add-on services,"Loyalty rewards: referral bonuses, exclusive benefits"
+2,Standard Established,High churn risk (45%); Basic service users,Urgent retention campaign with personalized offers,"Immediate intervention: dedicated retention team, contract incentives"

@@ -1,0 +1,1696 @@
+================================================================================
+          TELECOM CUSTOMER SEGMENTATION - COMPLETE CODE DOCUMENTATION
+================================================================================
+Student: Kongnyuy Raymond Afoni (FE25P028)
+Program: Masters of Engineering in Telecommunications and Networks
+Institution: University of Buea
+Course: Artificial Intelligence and Machine Learning Fundamentals
+Date: February 2026
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1. Project Structure Overview
+2. Function Call Flow Diagram
+3. Library Dependencies and Their Purposes
+4. Data Flow Architecture
+5. Key Algorithms Implementation Details
+
+================================================================================
+1. PROJECT STRUCTURE OVERVIEW
+================================================================================
+
+KONGNYUY_FE25P028_telecom_customer_clustering/
+├── main.py                    # ENTRY POINT - Orchestrates entire pipeline
+├── dashboard.py               # Streamlit web application
+├── requirements.txt           # Python package dependencies
+├── README.md                  # Project documentation
+│
+├── src/                       # SOURCE CODE MODULES
+│   ├── config.py              # Configuration constants and paths
+│   ├── utils.py               # Utility functions (plotting, saving, etc.)
+│   ├── data_loader.py         # Data loading and initial inspection
+│   ├── splitter.py            # Train/validation/test split implementation
+│   ├── eda.py                 # Exploratory Data Analysis visualizations
+│   ├── preprocessing.py       # Feature engineering and preprocessing
+│   ├── model_selection.py     # Algorithm evaluation and selection
+│   ├── training.py            # Final model training and evaluation
+│   └── profiling.py           # Cluster profiling and interpretation
+│
+├── data/                      # DATA DIRECTORY
+│   └── telecom_customer_dataset.csv
+│
+├── models/                    # SAVED MODELS
+│   ├── final_model.pkl        # Trained K-Means model
+│   └── preprocessor.pkl       # Fitted preprocessing pipeline
+│
+├── reports/                   # OUTPUT REPORTS
+│   ├── figures/               # Generated visualizations (17 PNG files)
+│   ├── cluster_profiles.csv   # Cluster characterization data
+│   └── business_actions.csv   # Business recommendations per cluster
+
+
+================================================================================
+2. MODULE-BY-MODULE FUNCTION DOCUMENTATION
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE: config.py
+--------------------------------------------------------------------------------
+PURPOSE: Central configuration hub containing all constants, paths, and settings
+
+KEY CONSTANTS:
+--------------
+STUDENT_NAME = "Kongnyuy Raymond Afoni"
+STUDENT_ID = "FE25P028"
+PROGRAM = "Masters of Engineering in Telecommunications and Networks"
+INSTITUTION = "University of Buea"
+[... All student and project metadata ...]
+
+PATH CONFIGURATION:
+-------------------
+BASE_DIR = SRC_DIR.parent
+DATA_DIR = BASE_DIR / "data"
+SRC_DIR = BASE_DIR / "src"
+MODELS_DIR = BASE_DIR / "models"
+REPORTS_DIR = BASE_DIR / "reports"
+FIGURES_DIR = REPORTS_DIR / "figures"
+
+FUNCTION: ensure_directories()
+--------------------------------
+CALLS: None (utility function)
+CALLED BY: Imported and executed when config.py is loaded
+PURPOSE: Creates all necessary directories if they don't exist
+
+ALGORITHM CONFIGURATION:
+------------------------
+KMEANS_K_RANGE = range(2, 11)           # K values to test: 2 through 10
+AGGLOMERATIVE_K_RANGE = range(2, 11)    # Same range for Agglomerative
+AGGLOMERATIVE_LINKAGES = ['ward', 'complete', 'average']
+DBSCAN_EPS_VALUES = [0.3, 0.5, 0.7, 1.0]
+DBSCAN_MIN_SAMPLES = [3, 5, 7, 10]
+
+BUSINESS RULES:
+---------------
+MIN_BUSINESS_CLUSTERS = 3    # Minimum acceptable clusters for business use
+MAX_BUSINESS_CLUSTERS = 6    # Maximum practical clusters for operations
+
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE: utils.py
+--------------------------------------------------------------------------------
+PURPOSE: Utility functions for plotting, saving/loading, and helper operations
+
+FUNCTION: setup_plot_style()
+----------------------------
+LIBRARIES: matplotlib.pyplot
+CALLS: None
+CALLED BY: All visualization functions in eda.py, model_selection.py, training.py, profiling.py
+PURPOSE: Sets consistent plot styling (DPI, fonts, colors) across all figures
+
+FUNCTION: save_figure(fig, filename, figures_dir)
+-------------------------------------------------
+PARAMETERS:
+    - fig: matplotlib Figure object
+    - filename: Name for saved file
+    - figures_dir: Directory path for saving
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib
+CALLS: setup_plot_style()
+CALLED BY: All figure generation functions
+PURPOSE: Saves figure with consistent formatting and closes plot
+
+FUNCTION: save_model(model, filepath)
+-------------------------------------
+PARAMETERS:
+    - model: Trained sklearn model object
+    - filepath: Path to save model
+RETURNS: Path to saved model
+LIBRARIES: pickle
+CALLS: None
+CALLED BY: main.py (after final model training)
+PURPOSE: Serializes trained model to disk using pickle
+
+FUNCTION: load_model(filepath)
+------------------------------
+PARAMETERS:
+    - filepath: Path to saved model
+RETURNS: Loaded model object
+LIBRARIES: pickle
+CALLS: None
+CALLED BY: dashboard.py
+PURPOSE: Deserializes model from disk for prediction
+
+FUNCTION: save_preprocessor(preprocessor, filepath)
+---------------------------------------------------
+PARAMETERS:
+    - preprocessor: TelecomPreprocessor object
+    - filepath: Path to save preprocessor
+RETURNS: Path to saved preprocessor
+LIBRARIES: pickle
+CALLS: None
+CALLED BY: main.py (after fitting preprocessor)
+PURPOSE: Serializes fitted preprocessor for later use
+
+FUNCTION: load_preprocessor(filepath)
+-------------------------------------
+PARAMETERS:
+    - filepath: Path to saved preprocessor
+RETURNS: Loaded preprocessor object
+LIBRARIES: pickle
+CALLS: None
+CALLED BY: dashboard.py
+PURPOSE: Deserializes preprocessor for transforming new data
+
+FUNCTION: compute_confidence_interval(successes, n, confidence=0.95)
+--------------------------------------------------------------------
+PARAMETERS:
+    - successes: Number of successes (e.g., churned customers)
+    - n: Total number of trials (e.g., cluster size)
+    - confidence: Confidence level (default 0.95 for 95% CI)
+RETURNS: Tuple of (lower_bound, upper_bound)
+LIBRARIES: scipy.stats
+CALLS: stats.norm.ppf()
+CALLED BY: external_validation() in training.py
+PURPOSE: Computes Wilson score interval for binomial proportion (churn rate CI)
+MATHEMATICAL BASIS:
+    Uses normal approximation to binomial distribution
+    Formula: p ± z * sqrt(p(1-p)/n)
+    where p = successes/n, z = critical value from standard normal
+
+FUNCTION: cramers_v(confusion_matrix)
+-------------------------------------
+PARAMETERS:
+    - confusion_matrix: 2D array (contingency table)
+RETURNS: Cramer's V statistic (float between 0 and 1)
+LIBRARIES: scipy.stats
+CALLS: stats.chi2_contingency()
+CALLED BY: external_validation() in training.py
+PURPOSE: Measures association between two categorical variables (cluster vs churn)
+MATHEMATICAL BASIS:
+    V = sqrt(chi2 / (n * min(k-1, r-1)))
+    where chi2 = chi-square statistic, n = total observations
+    k = number of columns, r = number of rows
+    Interpretation: 0 = no association, 1 = perfect association
+
+FUNCTION: generate_preprocessing_pipeline_diagram(output_path)
+--------------------------------------------------------------
+PARAMETERS:
+    - output_path: Path to save diagram
+RETURNS: Path to saved diagram
+LIBRARIES: matplotlib.pyplot, matplotlib.patches
+CALLS: None
+CALLED BY: main.py (after preprocessing)
+PURPOSE: Visualizes preprocessing steps with descriptions
+DIAGRAM ELEMENTS:
+    - Input: Raw Data (21 features)
+    - Steps: Missing Value Imputation, Feature Engineering, Categorical Encoding, Feature Scaling
+    - Output: Processed Features (ready for clustering)
+
+FUNCTION: print_header(title)
+-----------------------------
+PARAMETERS:
+    - title: Header text to print
+CALLS: None
+CALLED BY: All major pipeline functions
+PURPOSE: Prints formatted section header to terminal
+
+FUNCTION: print_section(title)
+------------------------------
+PARAMETERS:
+    - title: Section title to print
+CALLS: None
+CALLED BY: Subsection functions
+PURPOSE: Prints subsection divider to terminal
+
+FUNCTION: print_project_identity()
+----------------------------------
+CALLS: print_header()
+CALLED BY: main.py (at start)
+PURPOSE: Prints project identity banner with student info
+
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE: data_loader.py
+--------------------------------------------------------------------------------
+PURPOSE: Data loading, initial inspection, and quality checks
+
+FUNCTION: load_telecom_data(filepath=DATASET_PATH)
+--------------------------------------------------
+PARAMETERS:
+    - filepath: Path to CSV file (default: DATASET_PATH from config)
+RETURNS: Tuple of (DataFrame, info_dict)
+LIBRARIES: pandas, numpy
+CALLS: None
+CALLED BY: main.py (Phase 1)
+PURPOSE: 
+    1. Loads CSV using pandas.read_csv()
+    2. Converts TotalCharges to numeric (handles blank strings)
+    3. Computes basic statistics (shape, missing values, duplicates)
+    4. Prints summary to terminal
+    5. Returns DataFrame and info dictionary
+
+DATA QUALITY CHECKS PERFORMED:
+-------------------------------
+- Missing value count and percentage per column
+- Duplicate row detection
+- Memory usage calculation
+- Data type classification (numerical vs categorical)
+- Churn distribution analysis
+
+FUNCTION: get_column_categories(df)
+-----------------------------------
+PARAMETERS:
+    - df: Input DataFrame
+RETURNS: Dictionary with column categories
+CALLS: None
+CALLED BY: Not currently used (utility for future extensions)
+PURPOSE: Categorizes columns by type for preprocessing guidance
+
+FUNCTION: inspect_data_quality(df)
+----------------------------------
+PARAMETERS:
+    - df: Input DataFrame
+RETURNS: Dictionary with quality metrics
+CALLS: None
+CALLED BY: Not currently used (detailed inspection utility)
+PURPOSE: Performs detailed data quality inspection including:
+    - Missing value analysis
+    - Zero tenure with missing TotalCharges correlation
+    - Categorical value uniqueness
+    - Numerical statistics
+
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE: splitter.py
+--------------------------------------------------------------------------------
+PURPOSE: Implements stratified train/validation/test split
+
+FUNCTION: stratified_split(df, target_col, train_ratio, val_ratio, test_ratio, random_state)
+-------------------------------------------------------------------------------------------
+PARAMETERS:
+    - df: Input DataFrame (full dataset)
+    - target_col: Column for stratification (default: 'Churn')
+    - train_ratio: Proportion for training (default: 0.60)
+    - val_ratio: Proportion for validation (default: 0.20)
+    - test_ratio: Proportion for test (default: 0.20)
+    - random_state: Random seed for reproducibility
+RETURNS: Dictionary with 'train', 'validation', 'test' DataFrames
+LIBRARIES: sklearn.model_selection.train_test_split
+CALLS: train_test_split() (twice)
+CALLED BY: main.py (Phase 2)
+PURPOSE: 
+    Creates stratified splits preserving churn distribution
+    
+ALGORITHM:
+----------
+Step 1: Convert target to binary if needed
+    y_strat = (df['Churn'] == 'Yes').astype(int)
+
+Step 2: Split off test set (20%)
+    df_temp, df_test = train_test_split(
+        df, test_size=0.20, stratify=y_strat, random_state=42
+    )
+
+Step 3: Split remaining into train (60%) and validation (20% of original = 25% of remaining)
+    val_ratio_adjusted = 0.20 / (0.60 + 0.20) = 0.25
+    df_train, df_val = train_test_split(
+        df_temp, test_size=0.25, stratify=y_temp, random_state=42
+    )
+
+OUTPUT VERIFICATION:
+--------------------
+- Prints split sizes and percentages
+- Prints churn rate for each split (should all be ~26.5%)
+
+FUNCTION: verify_split_integrity(splits, id_col)
+------------------------------------------------
+PARAMETERS:
+    - splits: Dictionary with train, validation, test DataFrames
+    - id_col: Column to use for uniqueness check (default: 'customerID')
+RETURNS: Boolean (True if valid)
+CALLS: None
+CALLED BY: main.py (after splitting)
+PURPOSE: Verifies that splits are non-overlapping and complete
+
+VERIFICATION CHECKS:
+--------------------
+1. Check for overlapping IDs between any two splits
+2. Verify total unique records equals original count
+3. Print warning if issues found
+
+FUNCTION: get_combined_train_val(splits)
+----------------------------------------
+PARAMETERS:
+    - splits: Dictionary with train, validation, test DataFrames
+RETURNS: Combined train+validation DataFrame
+CALLS: pd.concat()
+CALLED BY: main.py (for final training), profiling.py
+PURPOSE: Combines training and validation sets for final model training
+
+FUNCTION: print_split_summary(splits)
+-------------------------------------
+PARAMETERS:
+    - splits: Dictionary with train, validation, test DataFrames
+CALLS: None
+CALLED BY: Not currently used (detailed summary utility)
+PURPOSE: Prints detailed summary of each split including numerical and categorical statistics
+
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE: eda.py
+--------------------------------------------------------------------------------
+PURPOSE: Exploratory Data Analysis with composite figure generation
+
+FUNCTION: create_eda_composite_1(df, figures_dir)
+-------------------------------------------------
+PARAMETERS:
+    - df: Input DataFrame (training set)
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot, seaborn
+CALLS: save_figure(), setup_plot_style()
+CALLED BY: run_eda()
+PURPOSE: Creates Composite Figure 1 with 4 subplots:
+    
+    PLOT 01: Tenure Distribution (Histogram + KDE)
+    - Shows customer tenure distribution
+    - X-axis: Tenure in months
+    - Y-axis: Frequency
+    - Vertical line at mean tenure
+    
+    PLOT 02: Monthly Charges Distribution (Histogram + KDE)
+    - Shows monthly charges distribution
+    - X-axis: Monthly Charges ($)
+    - Y-axis: Frequency
+    - Vertical line at mean charges
+    
+    PLOT 03: Churn Pie Chart
+    - Shows churn distribution (Yes/No)
+    - Percentage labels
+    - Colors: Green (No churn), Red (Churn)
+    
+    PLOT 04: Gender Pie Chart
+    - Shows gender distribution (Male/Female)
+    - Percentage labels
+
+KEY FINDINGS FOR COMPOSITE 1:
+------------------------------
+"The tenure distribution is right-skewed, indicating a large proportion of newer 
+customers (tenure < 12 months). Monthly charges show a bimodal distribution, 
+suggesting two distinct pricing tiers - budget customers (~$20-30) and premium 
+customers (~$70-100). The overall churn rate is approximately 26.5%, which is 
+significant for the telecom industry. Gender distribution is nearly balanced."
+
+FUNCTION: create_eda_composite_2(df, figures_dir)
+-------------------------------------------------
+PARAMETERS:
+    - df: Input DataFrame
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot, seaborn
+CALLS: save_figure(), setup_plot_style()
+CALLED BY: run_eda()
+PURPOSE: Creates Composite Figure 2 with 4 subplots:
+    
+    PLOT 05: Internet Service Adoption (Bar Chart)
+    - Shows count of customers by internet service type
+    - Categories: DSL, Fiber optic, No
+    - Value labels on bars
+    
+    PLOT 06: Contract Type Distribution (Bar Chart)
+    - Shows count of customers by contract type
+    - Categories: Month-to-month, One year, Two year
+    - Value labels on bars
+    
+    PLOT 07: Correlation Heatmap (Numerical Features)
+    - Shows correlation between tenure, MonthlyCharges, TotalCharges
+    - Color scale: Red (negative) to Blue (positive)
+    - Annotation with correlation values
+    
+    PLOT 08: Tenure vs Monthly Charges Scatter Plot
+    - X-axis: Tenure (months)
+    - Y-axis: Monthly Charges ($)
+    - Points colored by churn status
+    - Shows relationship between tenure, charges, and churn
+
+KEY FINDINGS FOR COMPOSITE 2:
+------------------------------
+"Fiber optic is the most popular internet service, followed by DSL. Month-to-month 
+contracts dominate the customer base, representing higher churn risk. The correlation 
+heatmap reveals strong positive correlation (0.83) between TotalCharges and tenure, 
+as expected. The scatter plot shows that churned customers tend to have lower tenure 
+and are distributed across all monthly charge levels."
+
+FUNCTION: create_eda_composite_3(df, figures_dir)
+-------------------------------------------------
+PARAMETERS:
+    - df: Input DataFrame
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot, seaborn
+CALLS: save_figure(), setup_plot_style()
+CALLED BY: run_eda()
+PURPOSE: Creates Composite Figure 3 with 4 subplots:
+    
+    PLOT 09: Boxplots for Outlier Detection
+    - Shows boxplots for tenure, MonthlyCharges, TotalCharges
+    - Identifies potential outliers using IQR method
+    
+    PLOT 10: Internet Service by Senior Citizen Status
+    - Grouped bar chart
+    - X-axis: Senior Citizen (0=No, 1=Yes)
+    - Y-axis: Percentage
+    - Bars colored by internet service type
+    
+    PLOT 11: Churn Rate by Payment Method
+    - Horizontal bar chart
+    - Shows churn rate for each payment method
+    - Dashed line for overall average
+    - Value labels
+    
+    PLOT 12: Service Bundle Correlations
+    - Heatmap of correlations between add-on services
+    - Services: OnlineSecurity, OnlineBackup, DeviceProtection, TechSupport, StreamingTV, StreamingMovies
+
+KEY FINDINGS FOR COMPOSITE 3:
+------------------------------
+"Outlier analysis reveals some customers with exceptionally high TotalCharges, but 
+these represent legitimate long-tenure, high-value customers. Senior citizens show 
+different service adoption patterns. Electronic check payment method has the highest 
+churn rate (~45%). Service bundle correlations show cross-selling opportunities."
+
+FUNCTION: run_eda(df, figures_dir)
+----------------------------------
+PARAMETERS:
+    - df: Input DataFrame
+    - figures_dir: Directory to save figures
+RETURNS: List of paths to generated figures
+CALLS: create_eda_composite_1(), create_eda_composite_2(), create_eda_composite_3()
+CALLED BY: main.py (Phase 3)
+PURPOSE: Orchestrates EDA and generates all composite figures
+
+FUNCTION: get_eda_key_findings()
+--------------------------------
+RETURNS: Dictionary with key findings for each composite
+CALLS: None
+
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE: preprocessing.py
+--------------------------------------------------------------------------------
+PURPOSE: Feature engineering, encoding, and scaling with data leakage prevention
+
+CLASS: TelecomPreprocessor
+--------------------------
+PURPOSE: Custom preprocessor implementing sklearn-style fit/transform pattern
+
+ATTRIBUTES:
+-----------
+- scaler: StandardScaler object (fit on training set only)
+- scaler_fitted: Boolean flag
+- feature_names_: List of final feature names after preprocessing
+- high_value_monthly_threshold: 75th percentile of MonthlyCharges (from training)
+- high_value_tenure_threshold: 75th percentile of tenure (from training)
+- onehot_columns: List of one-hot encoded column names
+
+METHOD: fit(df)
+---------------
+PARAMETERS:
+    - df: Training DataFrame
+RETURNS: Self (for method chaining)
+CALLS: 
+    - _impute_missing_values()
+    - _engineer_features()
+    - _encode_categorical()
+    - _encode_binary()
+    - scaler.fit()
+CALLED BY: main.py (Phase 4)
+PURPOSE: Computes all statistics on training set only
+
+FIT PROCESS:
+------------
+Step 1: Impute missing TotalCharges
+    For rows with tenure=0 or TotalCharges.isna():
+        TotalCharges = MonthlyCharges
+
+Step 2: Compute high-value thresholds
+    high_value_monthly_threshold = MonthlyCharges.quantile(0.75)
+    high_value_tenure_threshold = tenure.quantile(0.75)
+
+Step 3: Engineer new features
+    See _engineer_features() documentation
+
+Step 4: Encode categorical variables
+    One-hot encoding with drop_first=True
+
+Step 5: Encode binary variables
+    Map Yes/No to 1/0
+
+Step 6: Fit StandardScaler
+    scaler.fit(numerical_features)
+
+Step 7: Store feature names
+    feature_names_ = [all columns except customerID and Churn]
+
+METHOD: transform(df)
+---------------------
+PARAMETERS:
+    - df: DataFrame to transform (validation or test)
+RETURNS: Transformed DataFrame
+CALLS:
+    - _impute_missing_values()
+    - _engineer_features()
+    - _encode_categorical()
+    - _encode_binary()
+    - scaler.transform()
+    - _ensure_columns()
+CALLED BY: preprocess_all_splits(), dashboard.py
+PURPOSE: Transforms new data using statistics computed during fit()
+
+IMPORTANT: Uses pre-computed thresholds and fitted scaler - NO refitting!
+
+METHOD: fit_transform(df)
+-------------------------
+PARAMETERS:
+    - df: Training DataFrame
+RETURNS: Transformed DataFrame
+CALLS: fit(), then transform()
+CALLED BY: Not used (we use fit() then transform() separately)
+
+METHOD: _impute_missing_values(df)
+----------------------------------
+PARAMETERS:
+    - df: DataFrame with potential missing values
+RETURNS: DataFrame with imputed values
+PURPOSE: Handles missing TotalCharges
+
+IMPUTATION LOGIC:
+-----------------
+Observation: Missing TotalCharges occurs for customers with tenure=0
+Reason: New subscribers who haven't completed a full billing cycle
+Solution: Set TotalCharges = MonthlyCharges (first month's charge)
+
+Code:
+    mask = (df['TotalCharges'].isna()) | (df['tenure'] == 0)
+    df.loc[mask, 'TotalCharges'] = df.loc[mask, 'MonthlyCharges']
+
+METHOD: _engineer_features(df)
+------------------------------
+PARAMETERS:
+    - df: DataFrame
+RETURNS: DataFrame with new features
+PURPOSE: Creates 7 domain-specific features
+
+FEATURE 1: avg_monthly_spend
+----------------------------
+Formula: TotalCharges / (tenure + 1)
+Purpose: Captures spending intensity independent of tenure
+Rationale: Normalizes for customer lifetime, enables fair comparison
+Example: A customer with $1000 TotalCharges over 20 months = $47.62/month average
+
+FEATURE 2: tenure_group
+-----------------------
+Formula: pd.cut(tenure, bins=[0, 12, 48, 72], labels=['New', 'Mid', 'Loyal'])
+Mapping: New=0, Mid=1, Loyal=2
+Purpose: Customer lifecycle stage categorization
+Rationale: Different stages have different churn risks and marketing needs
+    - New (≤12 months): High churn risk, needs onboarding
+    - Mid (13-48 months): Established, potential for upselling
+    - Loyal (≥49 months): Low churn, referral candidates
+
+FEATURE 3: service_diversity
+----------------------------
+Formula: Count of "Yes" in [OnlineSecurity, OnlineBackup, DeviceProtection, TechSupport, StreamingTV, StreamingMovies]
+Range: 0 to 6
+Purpose: Measures engagement and cross-sell potential
+Rationale: Customers with more services are more "sticky" and less likely to churn
+
+FEATURE 4: contract_commitment
+------------------------------
+Formula: {'Month-to-month': 0, 'One year': 1, 'Two year': 2}
+Purpose: Ordinal encoding of contract length
+Rationale: Contract length is strong churn predictor
+    - Month-to-month: Highest flexibility, highest churn risk
+    - One year: Moderate commitment
+    - Two year: Strongest commitment, lowest churn risk
+
+FEATURE 5: auto_payment
+-----------------------
+Formula: 1 if PaymentMethod in ['Bank transfer (automatic)', 'Credit card (automatic)'], else 0
+Purpose: Identifies automatic payment customers
+Rationale: Auto-pay reduces churn risk (less friction, harder to cancel)
+
+FEATURE 6: high_value_flag
+--------------------------
+Formula: 1 if (MonthlyCharges > 75th percentile) AND (tenure > 75th percentile), else 0
+Purpose: Identifies premium, long-term customers
+Rationale: These customers deserve special retention efforts
+Note: Percentiles computed on training set only
+
+FEATURE 7: family_status
+------------------------
+Formula: partner + 2 * dependents
+Where: partner = 1 if Partner=='Yes' else 0
+       dependents = 1 if Dependents=='Yes' else 0
+Mapping:
+    0 = Single, no dependents
+    1 = With partner, no dependents
+    2 = No partner, with dependents
+    3 = With partner and dependents
+Purpose: Household composition indicator
+Rationale: Family structure affects service needs (family plans, multiple lines)
+
+METHOD: _encode_categorical(df, fit)
+------------------------------------
+PARAMETERS:
+    - df: DataFrame
+    - fit: Boolean (True during fit, False during transform)
+RETURNS: DataFrame with encoded categories
+PURPOSE: One-hot encode categorical variables
+
+COLUMNS ENCODED:
+----------------
+- gender
+- MultipleLines
+- InternetService
+- OnlineSecurity
+- OnlineBackup
+- DeviceProtection
+- TechSupport
+- StreamingTV
+- StreamingMovies
+- PaymentMethod
+
+ENCODING: pd.get_dummies(col, prefix=col, drop_first=True)
+Rationale: drop_first=True avoids multicollinearity (dummy variable trap)
+
+METHOD: _encode_binary(df)
+--------------------------
+PARAMETERS:
+    - df: DataFrame
+RETURNS: DataFrame with encoded binary columns
+PURPOSE: Convert Yes/No to 1/0
+
+COLUMNS ENCODED:
+----------------
+- Partner: {'Yes': 1, 'No': 0}
+- Dependents: {'Yes': 1, 'No': 0}
+- PhoneService: {'Yes': 1, 'No': 0}
+- PaperlessBilling: {'Yes': 1, 'No': 0}
+
+Note: SeniorCitizen is already 0/1
+
+METHOD: _ensure_columns(df)
+---------------------------
+PARAMETERS:
+    - df: DataFrame
+RETURNS: DataFrame with consistent columns
+PURPOSE: Ensures transformed data has same columns as during fit
+
+LOGIC:
+------
+1. Add missing columns as zeros
+2. Select only required columns in correct order
+3. This prevents feature count mismatches in dashboard
+
+FUNCTION: detect_outliers(df, columns)
+--------------------------------------
+PARAMETERS:
+    - df: DataFrame
+    - columns: List of numerical columns to check
+RETURNS: Dictionary with outlier information
+CALLS: None
+CALLED BY: main.py (Phase 4)
+PURPOSE: Detects outliers using IQR method (for information only)
+
+IQR METHOD:
+-----------
+Q1 = df[col].quantile(0.25)
+Q3 = df[col].quantile(0.75)
+IQR = Q3 - Q1
+Lower bound = Q1 - 1.5 * IQR
+Upper bound = Q3 + 1.5 * IQR
+Outliers = values < lower_bound OR values > upper_bound
+
+NOTE: Outliers are kept as they represent legitimate customer behaviors
+
+FUNCTION: preprocess_all_splits(splits, preprocessor)
+-----------------------------------------------------
+PARAMETERS:
+    - splits: Dictionary with train, validation, test DataFrames
+    - preprocessor: Fitted TelecomPreprocessor
+RETURNS: Dictionary with preprocessed DataFrames
+CALLS: preprocessor.transform()
+CALLED BY: main.py (Phase 4)
+PURPOSE: Applies preprocessing to all splits
+
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE: model_selection.py
+--------------------------------------------------------------------------------
+PURPOSE: Evaluate clustering algorithms and select optimal model
+
+FUNCTION: evaluate_kmeans(X, k_range, random_state)
+---------------------------------------------------
+PARAMETERS:
+    - X: Feature matrix (validation set)
+    - k_range: Range of K values to test (default: 2-10)
+    - random_state: Random seed
+RETURNS: Dictionary with metrics for each K
+LIBRARIES: sklearn.cluster.KMeans, sklearn.metrics
+CALLS: KMeans(), silhouette_score(), davies_bouldin_score(), calinski_harabasz_score()
+CALLED BY: run_model_selection()
+PURPOSE: Evaluates K-Means for different K values
+
+ALGORITHM - K-MEANS:
+--------------------
+K-Means partitions n observations into k clusters by minimizing within-cluster variance.
+
+Steps:
+1. Initialize k centroids randomly
+2. Assign each point to nearest centroid
+3. Update centroids as mean of assigned points
+4. Repeat steps 2-3 until convergence
+
+MATHEMATICAL OBJECTIVE:
+-----------------------
+Minimize: J = Σ(i=1 to n) Σ(k=1 to K) r_ik ||x_i - μ_k||²
+
+Where:
+- r_ik = 1 if point i belongs to cluster k, else 0
+- μ_k = centroid of cluster k
+- ||x_i - μ_k||² = squared Euclidean distance
+
+METRICS COMPUTED FOR EACH K:
+-----------------------------
+1. Silhouette Score: Measures cluster cohesion and separation
+   Range: [-1, 1], Higher is better
+   
+2. Davies-Bouldin Index: Ratio of within-cluster scatter to between-cluster separation
+   Range: [0, ∞), Lower is better
+   
+3. Calinski-Harabasz Index: Ratio of between-cluster to within-cluster dispersion
+   Range: [0, ∞), Higher is better
+   
+4. Inertia: Sum of squared distances to nearest centroid
+   Used for elbow method
+
+FUNCTION: evaluate_agglomerative(X, k_range, linkages)
+------------------------------------------------------
+PARAMETERS:
+    - X: Feature matrix
+    - k_range: Range of K values
+    - linkages: List of linkage methods ['ward', 'complete', 'average']
+RETURNS: Dictionary with results for each linkage
+LIBRARIES: sklearn.cluster.AgglomerativeClustering
+CALLS: AgglomerativeClustering(), silhouette_score(), davies_bouldin_score(), calinski_harabasz_score()
+CALLED BY: run_model_selection()
+PURPOSE: Evaluates Agglomerative Clustering
+
+ALGORITHM - AGGLOMERATIVE CLUSTERING:
+-------------------------------------
+Bottom-up hierarchical clustering that builds a dendrogram.
+
+Steps:
+1. Start with each point as its own cluster
+2. Compute pairwise distances between all clusters
+3. Merge closest pair of clusters
+4. Update distance matrix
+5. Repeat steps 2-4 until all points in one cluster
+
+LINKAGE METHODS:
+----------------
+1. Ward: Minimizes variance increase when merging clusters
+   d(A,B) = sqrt((2|A||B|/(|A|+|B|)) * ||μ_A - μ_B||²)
+   
+2. Complete: Maximum distance between clusters
+   d(A,B) = max{dist(a,b) : a∈A, b∈B}
+   
+3. Average: Average distance between clusters
+   d(A,B) = (1/|A||B|) Σ(a∈A) Σ(b∈B) dist(a,b)
+
+FUNCTION: evaluate_dbscan(X, eps_values, min_samples_values)
+------------------------------------------------------------
+PARAMETERS:
+    - X: Feature matrix
+    - eps_values: List of epsilon values (neighborhood radius)
+    - min_samples_values: List of min_samples (density threshold)
+RETURNS: Dictionary with results grid
+LIBRARIES: sklearn.cluster.DBSCAN
+CALLS: DBSCAN(), silhouette_score()
+CALLED BY: run_model_selection()
+PURPOSE: Evaluates DBSCAN with parameter grid search
+
+ALGORITHM - DBSCAN:
+-------------------
+Density-Based Spatial Clustering of Applications with Noise
+
+Key Concepts:
+- Core point: Has at least min_samples within eps radius
+- Border point: Within eps of core point but not core itself
+- Noise point: Neither core nor border
+
+Steps:
+1. Find all core points
+2. Connect core points within eps of each other
+3. Assign border points to nearby clusters
+4. Mark remaining points as noise (-1)
+
+MATHEMATICAL DEFINITION:
+------------------------
+N_eps(p) = {q ∈ D : dist(p,q) ≤ eps}  (eps-neighborhood of p)
+
+p is a core point if |N_eps(p)| ≥ min_samples
+
+ADVANTAGES:
+-----------
+- Discovers arbitrarily shaped clusters
+- Identifies noise/outliers
+- Does not require specifying K
+
+LIMITATIONS:
+------------
+- Sensitive to eps and min_samples parameters
+- Struggles with varying density clusters
+
+FUNCTION: plot_silhouette_vs_k(kmeans_results, agglomerative_results, figures_dir)
+----------------------------------------------------------------------------------
+PARAMETERS:
+    - kmeans_results: Results from evaluate_kmeans()
+    - agglomerative_results: Results from evaluate_agglomerative()
+    - figures_dir: Directory to save figures
+RETURNS: Tuple of (kmeans_plot_path, agglomerative_plot_path)
+LIBRARIES: matplotlib.pyplot
+CALLS: save_figure()
+CALLED BY: run_model_selection()
+PURPOSE: Creates silhouette score plots for K-Means and Agglomerative
+
+VISUALIZATION DETAILS:
+----------------------
+- Line plot: K on x-axis, Silhouette Score on y-axis
+- Star marker at optimal K
+- Annotation with optimal value
+- Grid for readability
+
+FUNCTION: plot_dbscan_heatmap(dbscan_results, figures_dir)
+----------------------------------------------------------
+PARAMETERS:
+    - dbscan_results: Results from evaluate_dbscan()
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot, seaborn
+CALLS: save_figure()
+CALLED BY: run_model_selection()
+PURPOSE: Creates heatmap of DBSCAN silhouette scores
+
+VISUALIZATION DETAILS:
+----------------------
+- X-axis: eps values
+- Y-axis: min_samples values
+- Color: Silhouette score (RdYlGn colormap)
+- Annotations: Score values in cells
+
+FUNCTION: plot_elbow_method(kmeans_results, figures_dir)
+--------------------------------------------------------
+PARAMETERS:
+    - kmeans_results: Results from evaluate_kmeans()
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot
+CALLS: save_figure()
+CALLED BY: run_model_selection()
+PURPOSE: Creates elbow curve for K-Means
+
+ELBOW METHOD:
+-------------
+Heuristic for choosing K by plotting inertia vs K.
+The "elbow" point is where adding more clusters yields diminishing returns.
+
+FUNCTION: plot_algorithm_comparison(kmeans_results, agglomerative_results, dbscan_results, figures_dir)
+------------------------------------------------------------------------------------------------------
+PARAMETERS:
+    - kmeans_results: K-Means results
+    - agglomerative_results: Agglomerative results
+    - dbscan_results: DBSCAN results
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot
+CALLS: save_figure()
+CALLED BY: run_model_selection()
+PURPOSE: Bar chart comparing best silhouette scores across algorithms
+
+FUNCTION: apply_business_override(kmeans_results, agglomerative_results)
+------------------------------------------------------------------------
+PARAMETERS:
+    - kmeans_results: K-Means evaluation results
+    - agglomerative_results: Agglomerative evaluation results
+RETURNS: Tuple of (algorithm_name, optimal_k, selection_details)
+CALLS: None
+CALLED BY: run_model_selection()
+PURPOSE: Applies business-driven selection criteria
+
+BUSINESS RULES:
+---------------
+Rule 1: K=1 is invalid (no segmentation)
+    Action: Select next best K ≥ 3
+
+Rule 2: K=2 is too trivial for telecom
+    Reason: Only separates high/low value (any analyst could do this)
+    Action: Select K=3 or higher with justification
+    
+Rule 3: K > 6 is too granular
+    Reason: Managing >6 segments operationally difficult
+    Action: Select best K ≤ 6
+
+SELECTION HIERARCHY:
+--------------------
+1. Identify mathematically optimal K
+2. If K=1 or K=2, move to next best K ≥ 3
+3. If K > 6, select best K ≤ 6
+4. Document all overrides with justification
+
+FUNCTION: run_model_selection(X_train, X_val, figures_dir)
+----------------------------------------------------------
+PARAMETERS:
+    - X_train: Training features (for context)
+    - X_val: Validation features (for evaluation)
+    - figures_dir: Directory to save figures
+RETURNS: Dictionary with all results and selected model info
+CALLS:
+    - evaluate_kmeans()
+    - evaluate_agglomerative()
+    - evaluate_dbscan()
+    - plot_silhouette_vs_k()
+    - plot_dbscan_heatmap()
+    - plot_elbow_method()
+    - plot_algorithm_comparison()
+    - apply_business_override()
+CALLED BY: main.py (Phase 5)
+PURPOSE: Orchestrates complete model selection process
+
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE: training.py
+--------------------------------------------------------------------------------
+PURPOSE: Final model training and comprehensive evaluation
+
+FUNCTION: train_final_model(X, k, random_state)
+-----------------------------------------------
+PARAMETERS:
+    - X: Feature matrix
+    - k: Number of clusters
+    - random_state: Random seed
+RETURNS: Trained KMeans model
+LIBRARIES: sklearn.cluster.KMeans
+CALLS: KMeans()
+CALLED BY: run_final_training_and_evaluation()
+PURPOSE: Trains K-Means model with specified parameters
+
+FUNCTION: evaluate_model(X, labels, dataset_name)
+-------------------------------------------------
+PARAMETERS:
+    - X: Feature matrix
+    - labels: Cluster labels
+    - dataset_name: Name for printing ("Training", "Validation", "Test")
+RETURNS: Dictionary with metrics
+LIBRARIES: sklearn.metrics
+CALLS: silhouette_score(), davies_bouldin_score(), calinski_harabasz_score()
+CALLED BY: run_final_training_and_evaluation()
+PURPOSE: Computes internal validation metrics
+
+METRICS:
+--------
+1. Silhouette Score: (b(i) - a(i)) / max(a(i), b(i))
+   a(i) = average distance from point i to other points in same cluster
+   b(i) = average distance from point i to points in nearest other cluster
+   
+2. Davies-Bouldin Index: (1/k) Σ(i=1 to k) max(j≠i) [(σ_i + σ_j) / d(c_i, c_j)]
+   σ_i = average distance within cluster i
+   d(c_i, c_j) = distance between centroids
+   
+3. Calinski-Harabasz Index: tr(B)/(k-1) / tr(W)/(n-k)
+   B = between-cluster dispersion matrix
+   W = within-cluster dispersion matrix
+
+FUNCTION: external_validation(df, labels, target_col)
+-----------------------------------------------------
+PARAMETERS:
+    - df: DataFrame with original data including Churn column
+    - labels: Cluster labels
+    - target_col: Name of target column (default: 'Churn')
+RETURNS: Dictionary with external validation results
+LIBRARIES: scipy.stats
+CALLS: compute_confidence_interval(), cramers_v(), stats.chi2_contingency()
+CALLED BY: run_final_training_and_evaluation()
+PURPOSE: Validates clusters using churn as external proxy
+
+EXTERNAL VALIDATION PROCESS:
+----------------------------
+1. Compute churn rate per cluster with 95% confidence interval
+2. Perform chi-square test of independence
+3. Compute Cramer's V effect size
+
+CHI-SQUARE TEST:
+----------------
+H0: Cluster assignment and churn are independent
+H1: Cluster assignment and churn are associated
+
+Test statistic: χ² = Σ (O - E)² / E
+Where O = observed frequency, E = expected frequency
+
+If p-value < 0.05, reject H0 (significant association)
+
+FUNCTION: plot_churn_by_cluster(cluster_churn, cluster_names, figures_dir)
+--------------------------------------------------------------------------
+PARAMETERS:
+    - cluster_churn: Dictionary with churn rates per cluster
+    - cluster_names: Dictionary mapping cluster_id to name
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot
+CALLS: save_figure()
+CALLED BY: generate_test_evaluation_plots()
+PURPOSE: Bar chart of churn rate per cluster with confidence intervals
+
+FUNCTION: plot_pca_projection(X, labels, cluster_names, figures_dir)
+--------------------------------------------------------------------
+PARAMETERS:
+    - X: Feature matrix
+    - labels: Cluster labels
+    - cluster_names: Dictionary mapping cluster_id to name
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: sklearn.decomposition.PCA, matplotlib.pyplot
+CALLS: PCA(), save_figure()
+CALLED BY: generate_test_evaluation_plots()
+PURPOSE: 2D PCA scatter plot colored by cluster
+
+PCA (Principal Component Analysis):
+-----------------------------------
+Dimensionality reduction technique that projects data onto principal components.
+
+Mathematical Basis:
+1. Center data: X_centered = X - mean(X)
+2. Compute covariance matrix: C = (1/n) X_centered^T X_centered
+3. Eigen decomposition: C = V Λ V^T
+4. Principal components = eigenvectors V
+5. Projection: Z = X_centered V_k (first k components)
+
+FUNCTION: plot_cluster_centroids_heatmap(X, labels, feature_names, figures_dir)
+-------------------------------------------------------------------------------
+PARAMETERS:
+    - X: Feature matrix
+    - labels: Cluster labels
+    - feature_names: List of feature names
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot, seaborn
+CALLS: save_figure()
+CALLED BY: generate_test_evaluation_plots()
+PURPOSE: Heatmap of cluster centroids for top features
+
+FUNCTION: plot_silhouette_per_sample(X, labels, figures_dir)
+------------------------------------------------------------
+PARAMETERS:
+    - X: Feature matrix
+    - labels: Cluster labels
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: sklearn.metrics.silhouette_samples, matplotlib.pyplot
+CALLS: silhouette_samples(), save_figure()
+CALLED BY: generate_test_evaluation_plots()
+PURPOSE: Per-sample silhouette plot sorted within clusters
+
+FUNCTION: plot_cluster_size_pie(labels, cluster_names, figures_dir)
+-------------------------------------------------------------------
+PARAMETERS:
+    - labels: Cluster labels
+    - cluster_names: Dictionary mapping cluster_id to name
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot
+CALLS: save_figure()
+CALLED BY: generate_test_evaluation_plots()
+PURPOSE: Pie chart showing percentage of customers per cluster
+
+FUNCTION: run_final_training_and_evaluation(X_train, X_val, X_test, df_test, selected_k, feature_names, figures_dir)
+-------------------------------------------------------------------------------------------------------------------
+PARAMETERS:
+    - X_train: Training features
+    - X_val: Validation features
+    - X_test: Test features
+    - df_test: Test DataFrame with original columns
+    - selected_k: Selected number of clusters
+    - feature_names: List of feature names
+    - figures_dir: Directory to save figures
+RETURNS: Dictionary with all results
+CALLS:
+    - train_final_model()
+    - evaluate_model()
+    - external_validation()
+CALLED BY: main.py (Phase 6)
+PURPOSE: Orchestrates final training and evaluation
+
+TRAINING PROTOCOL:
+------------------
+Step 1: Train on training set only
+    model_train = KMeans(k=selected_k).fit(X_train)
+    Evaluate on validation set
+
+Step 2: Retrain on train + validation combined
+    X_train_val = np.vstack([X_train, X_val])
+    model_final = KMeans(k=selected_k).fit(X_train_val)
+
+Step 3: Evaluate on test set
+    Compute internal metrics
+    Perform external validation
+
+FUNCTION: generate_test_evaluation_plots(X_test, test_labels, external_results, feature_names, cluster_names, figures_dir)
+------------------------------------------------------------------------------------------------------------------------
+PARAMETERS:
+    - X_test: Test features
+    - test_labels: Cluster labels for test set
+    - external_results: Results from external_validation()
+    - feature_names: List of feature names
+    - cluster_names: Dictionary mapping cluster_id to name
+    - figures_dir: Directory to save figures
+RETURNS: Dictionary of plot paths
+CALLS:
+    - plot_churn_by_cluster()
+    - plot_pca_projection()
+    - plot_cluster_centroids_heatmap()
+    - plot_silhouette_per_sample()
+    - plot_cluster_size_pie()
+CALLED BY: main.py (after profiling)
+PURPOSE: Generates all test evaluation visualizations
+
+================================================================================
+
+--------------------------------------------------------------------------------
+MODULE: profiling.py
+--------------------------------------------------------------------------------
+PURPOSE: Cluster characterization, naming, and business action generation
+
+FUNCTION: compute_anova_f_statistics(df, labels, feature_names)
+---------------------------------------------------------------
+PARAMETERS:
+    - df: DataFrame with features
+    - labels: Cluster labels
+    - feature_names: List of feature names
+RETURNS: DataFrame with F-statistics and p-values
+LIBRARIES: scipy.stats
+CALLS: stats.f_oneway()
+CALLED BY: run_profiling()
+PURPOSE: Identifies most discriminating features between clusters
+
+ANOVA (Analysis of Variance):
+-----------------------------
+Tests whether means of multiple groups are significantly different.
+
+Hypotheses:
+H0: μ_1 = μ_2 = ... = μ_k (all cluster means are equal)
+H1: At least one μ_i differs
+
+F-statistic: F = (Between-group variance) / (Within-group variance)
+             = MSB / MSW
+
+Where:
+MSB = SSB / (k-1)  (Mean Square Between)
+MSW = SSW / (n-k)  (Mean Square Within)
+SSB = Σ(i=1 to k) n_i (x̄_i - x̄)²  (Sum of Squares Between)
+SSW = Σ(i=1 to k) Σ(j=1 to n_i) (x_ij - x̄_i)²  (Sum of Squares Within)
+
+High F-statistic indicates feature discriminates well between clusters.
+
+FUNCTION: characterize_clusters(df, labels, feature_names)
+----------------------------------------------------------
+PARAMETERS:
+    - df: DataFrame with features
+    - labels: Cluster labels
+    - feature_names: List of feature names
+RETURNS: DataFrame with cluster profiles
+CALLS: None
+CALLED BY: run_profiling()
+PURPOSE: Computes statistical profile for each cluster
+
+PROFILE STATISTICS:
+-------------------
+- Size: Number of customers in cluster
+- Size percentage: Proportion of total customers
+- Churn rate: Percentage of churned customers
+- Mean and std for: tenure, MonthlyCharges, TotalCharges, avg_monthly_spend, service_diversity
+- Mode for: Contract, InternetService, PaymentMethod
+- Percentage for: high_value_flag, auto_payment
+
+FUNCTION: assign_cluster_names(profiles_df)
+-------------------------------------------
+PARAMETERS:
+    - profiles_df: DataFrame with cluster profiles
+RETURNS: Dictionary mapping cluster_id to name
+CALLS: None
+CALLED BY: run_profiling()
+PURPOSE: Assigns empirical names based on cluster characteristics
+
+NAMING LOGIC:
+-------------
+Builds name from descriptors based on:
+1. Spending level: Premium (>80), Standard (55-80), Budget (<55)
+2. Tenure/Loyalty: New (<15), Established (15-45), Loyal (>45)
+3. Service usage: Tech-Savvy (>4 services), Basic (<2 services)
+4. Churn risk: High-Risk (>40%), Stable (<15%)
+5. Contract: Committed (Two year), Flexible (Month-to-month)
+
+Example: "Premium Loyal Tech-Savvy" or "Budget New High-Risk"
+
+FUNCTION: generate_business_actions(profiles_df, cluster_names)
+---------------------------------------------------------------
+PARAMETERS:
+    - profiles_df: DataFrame with cluster profiles
+    - cluster_names: Dictionary mapping cluster_id to name
+RETURNS: DataFrame with business actions
+CALLS: None
+CALLED BY: run_profiling()
+PURPOSE: Generates marketing and retention strategies per cluster
+
+ACTION GENERATION LOGIC:
+------------------------
+Primary Insight:
+    - Combines key characteristics (churn rate, tenure, spending, services)
+
+Marketing Action:
+    - High churn (>35%): Urgent retention campaign
+    - Low tenure (<15): Onboarding program
+    - High spending (>80): Premium upselling
+    - Low services (<2): Cross-selling campaign
+    - Default: Maintain engagement
+
+Retention Strategy:
+    - Very high churn (>40%): Immediate intervention
+    - High churn (25-40%): Proactive outreach
+    - Month-to-month: Contract conversion
+    - Default: Loyalty rewards
+
+FUNCTION: plot_radar_chart(df, labels, anova_results, cluster_names, figures_dir)
+---------------------------------------------------------------------------------
+PARAMETERS:
+    - df: DataFrame with features
+    - labels: Cluster labels
+    - anova_results: DataFrame with ANOVA results
+    - cluster_names: Dictionary mapping cluster_id to name
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot
+CALLS: save_figure()
+CALLED BY: run_profiling()
+PURPOSE: Radar chart of top 5 discriminating features
+
+RADAR CHART CONSTRUCTION:
+-------------------------
+1. Select top 5 features by F-statistic
+2. Compute global min and max for each feature
+3. Compute cluster mean for each feature
+4. Scale to [0, 1]: (mean - min) / (max - min)
+5. Plot on polar coordinates with one axis per feature
+6. Each cluster is a polygon
+
+INTERPRETATION:
+---------------
+- Values near 1 (outer edge): Cluster has high values for that feature
+- Values near 0 (center): Cluster has low values for that feature
+- Shape differences show how clusters differ
+
+FUNCTION: plot_feature_importance(anova_results, figures_dir)
+-------------------------------------------------------------
+PARAMETERS:
+    - anova_results: DataFrame with ANOVA results
+    - figures_dir: Directory to save figure
+RETURNS: Path to saved figure
+LIBRARIES: matplotlib.pyplot
+CALLS: save_figure()
+CALLED BY: run_profiling()
+PURPOSE: Horizontal bar chart of feature importance
+
+FUNCTION: run_profiling(df, labels, feature_names, figures_dir)
+---------------------------------------------------------------
+PARAMETERS:
+    - df: DataFrame with features
+    - labels: Cluster labels
+    - feature_names: List of feature names
+    - figures_dir: Directory to save figures
+RETURNS: Dictionary with all profiling results
+CALLS:
+    - compute_anova_f_statistics()
+    - characterize_clusters()
+    - assign_cluster_names()
+    - generate_business_actions()
+    - plot_radar_chart()
+    - plot_feature_importance()
+CALLED BY: main.py (Phase 7)
+PURPOSE: Orchestrates complete cluster profiling
+
+FUNCTION: save_profiling_results(results, profiles_path, actions_path)
+----------------------------------------------------------------------
+PARAMETERS:
+    - results: Dictionary with profiling results
+    - profiles_path: Path to save cluster profiles CSV
+    - actions_path: Path to save business actions CSV
+CALLS: to_csv()
+CALLED BY: main.py (after profiling)
+PURPOSE: Saves profiling results to CSV files
+
+================================================================================
+3. FUNCTION CALL FLOW DIAGRAM
+================================================================================
+
+main.py (ENTRY POINT)
+│
+├── print_project_identity()
+│
+├── load_telecom_data() [data_loader.py]
+│   └── Returns: df, data_info
+│
+├── stratified_split() [splitter.py]
+│   ├── train_test_split() [sklearn]
+│   └── Returns: splits dict
+│
+├── verify_split_integrity() [splitter.py]
+│
+├── run_eda() [eda.py]
+│   ├── create_eda_composite_1()
+│   ├── create_eda_composite_2()
+│   └── create_eda_composite_3()
+│       └── save_figure() [utils.py]
+│
+├── detect_outliers() [preprocessing.py]
+│
+├── TelecomPreprocessor.fit() [preprocessing.py]
+│   ├── _impute_missing_values()
+│   ├── _engineer_features()
+│   ├── _encode_categorical()
+│   ├── _encode_binary()
+│   └── scaler.fit()
+│
+├── preprocess_all_splits() [preprocessing.py]
+│   └── preprocessor.transform() [for each split]
+│
+├── save_preprocessor() [utils.py]
+│
+├── generate_preprocessing_pipeline_diagram() [utils.py]
+│
+├── run_model_selection() [model_selection.py]
+│   ├── evaluate_kmeans()
+│   │   ├── KMeans() [sklearn]
+│   │   ├── silhouette_score()
+│   │   ├── davies_bouldin_score()
+│   │   └── calinski_harabasz_score()
+│   ├── evaluate_agglomerative()
+│   ├── evaluate_dbscan()
+│   ├── plot_silhouette_vs_k()
+│   ├── plot_dbscan_heatmap()
+│   ├── plot_elbow_method()
+│   ├── plot_algorithm_comparison()
+│   └── apply_business_override()
+│
+├── run_final_training_and_evaluation() [training.py]
+│   ├── train_final_model()
+│   ├── evaluate_model()
+│   │   ├── silhouette_score()
+│   │   ├── davies_bouldin_score()
+│   │   └── calinski_harabasz_score()
+│   └── external_validation()
+│       ├── compute_confidence_interval() [utils.py]
+│       └── cramers_v() [utils.py]
+│
+├── save_model() [utils.py]
+│
+├── run_profiling() [profiling.py]
+│   ├── compute_anova_f_statistics()
+│   ├── characterize_clusters()
+│   ├── assign_cluster_names()
+│   ├── generate_business_actions()
+│   ├── plot_radar_chart()
+│   └── plot_feature_importance()
+│       └── save_figure() [utils.py]
+│
+├── save_profiling_results() [profiling.py]
+│
+├── generate_test_evaluation_plots() [training.py]
+│   ├── plot_churn_by_cluster()
+│   ├── plot_pca_projection()
+│   ├── plot_cluster_centroids_heatmap()
+│   ├── plot_silhouette_per_sample()
+│   └── plot_cluster_size_pie()
+│       └── save_figure() [utils.py]
+│
+└── generate_workflow_diagram() [utils.py]
+
+================================================================================
+4. LIBRARY DEPENDENCIES AND THEIR PURPOSES
+================================================================================
+
+CORE DATA MANIPULATION:
+-----------------------
+pandas (>=1.5.0)
+    Purpose: Data loading, manipulation, and analysis
+    Key Functions: read_csv(), DataFrame operations, groupby, merge
+    Used In: All modules
+
+numpy (>=1.23.0)
+    Purpose: Numerical computations and array operations
+    Key Functions: array operations, mathematical functions, random
+    Used In: All modules
+
+MACHINE LEARNING:
+-----------------
+scikit-learn (>=1.2.0)
+    Purpose: Machine learning algorithms and preprocessing
+    Submodules Used:
+        - sklearn.cluster: KMeans, AgglomerativeClustering, DBSCAN
+        - sklearn.model_selection: train_test_split
+        - sklearn.preprocessing: StandardScaler
+        - sklearn.decomposition: PCA
+        - sklearn.metrics: silhouette_score, davies_bouldin_score, calinski_harabasz_score
+    Used In: splitter.py, preprocessing.py, model_selection.py, training.py
+
+scipy (>=1.9.0)
+    Purpose: Scientific computing and statistical tests
+    Submodules Used:
+        - scipy.stats: f_oneway, chi2_contingency, norm
+    Used In: preprocessing.py, profiling.py, training.py
+
+VISUALIZATION:
+--------------
+matplotlib (>=3.6.0)
+    Purpose: Static plotting and figure generation
+    Key Functions: pyplot, subplots, scatter, bar, pie, heatmap
+    Used In: utils.py, eda.py, model_selection.py, training.py, profiling.py
+
+seaborn (>=0.12.0)
+    Purpose: Statistical visualizations
+    Key Functions: heatmap, color palettes
+    Used In: eda.py, training.py
+
+plotly (>=5.10.0)
+    Purpose: Interactive visualizations (optional)
+    Used In: Not currently used (for future enhancements)
+
+DASHBOARD:
+----------
+streamlit (>=1.20.0)
+    Purpose: Web application framework for ML models
+    Key Functions: set_page_config, sidebar, tabs, dataframe, image
+    Used In: dashboard.py
+
+
+SERIALIZATION:
+--------------
+joblib (>=1.2.0)
+    Purpose: Model serialization (alternative to pickle)
+    Used In: Not currently used (using pickle instead)
+
+pickle (built-in)
+    Purpose: Python object serialization
+    Used In: utils.py, preprocessing.py
+
+IMAGE PROCESSING:
+-----------------
+Pillow (>=9.0.0)
+    Purpose: Image manipulation
+    Used In: dashboard.py (for image display)
+
+================================================================================
+5. DATA FLOW ARCHITECTURE
+================================================================================
+
+RAW DATA INPUT:
+---------------
+telecom_customer_dataset.csv
+    - 7,043 rows × 21 columns
+    - Columns: customerID, gender, SeniorCitizen, Partner, Dependents, tenure,
+               PhoneService, MultipleLines, InternetService, OnlineSecurity,
+               OnlineBackup, DeviceProtection, TechSupport, StreamingTV,
+               StreamingMovies, Contract, PaperlessBilling, PaymentMethod,
+               MonthlyCharges, TotalCharges, Churn
+
+DATA SPLITTING:
+---------------
+Original (7,043)
+    ├── Training (4,225, 60%) ──> Preprocessor.fit()
+    ├── Validation (1,409, 20%) ──> Model Selection
+    └── Test (1,409, 20%) ──> Final Evaluation
+
+PREPROCESSING PIPELINE:
+-----------------------
+Raw Features (21)
+    ├── Drop: customerID (kept for reference), Churn (target for validation)
+    ├── Impute: TotalCharges (set to MonthlyCharges for tenure=0)
+    ├── Engineer: +7 new features
+    │   ├── avg_monthly_spend
+    │   ├── tenure_group
+    │   ├── service_diversity
+    │   ├── contract_commitment
+    │   ├── auto_payment
+    │   ├── high_value_flag
+    │   └── family_status
+    ├── Encode Categorical: One-hot encoding
+    │   └── Expands to multiple binary columns
+    ├── Encode Binary: Yes/No → 1/0
+    └── Scale: StandardScaler on numerical features
+    
+    Final: 35 features
+
+MODEL TRAINING:
+---------------
+Training Data (4,225 samples × 35 features)
+    └── KMeans(n_clusters=3).fit()
+        └── Model Parameters:
+            ├── cluster_centers_ (3 × 35)
+            ├── labels_ (4,225,)
+            ├── inertia_ (float)
+            └── n_iter_ (int)
+
+PREDICTION FLOW:
+----------------
+New Customer Data (1 sample × 21 features)
+    └── preprocessor.transform()
+        ├── Impute missing
+        ├── Engineer features
+        ├── Encode categorical
+        ├── Encode binary
+        └── Scale numerical
+        └── Output: (1 × 35 features)
+            └── model.predict()
+                └── Output: Cluster ID (0, 1, or 2)
+                    └── Map to cluster name
+                        └── Get business actions
+
+================================================================================
+6. KEY ALGORITHMS IMPLEMENTATION DETAILS
+================================================================================
+
+ALGORITHM 1: K-MEANS CLUSTERING
+-------------------------------
+Implementation: sklearn.cluster.KMeans
+
+Parameters Used:
+    - n_clusters: 3 (selected via model selection)
+    - init: 'k-means++' (smart initialization)
+    - n_init: 10 (number of initializations)
+    - max_iter: 300
+    - random_state: 42 (for reproducibility)
+
+Mathematical Objective:
+    Minimize: J = Σ(i=1 to n) min(μ_k) ||x_i - μ_k||²
+
+Convergence Criteria:
+    - Change in centroids < tolerance (1e-4)
+    - Maximum iterations reached
+
+Time Complexity: O(n × k × d × i)
+    n = number of samples
+    k = number of clusters
+    d = number of features
+    i = number of iterations
+
+Space Complexity: O(n × d + k × d)
+
+ALGORITHM 2: AGGLOMERATIVE CLUSTERING
+-------------------------------------
+Implementation: sklearn.cluster.AgglomerativeClustering
+
+Parameters Used:
+    - n_clusters: 2-10 (tested range)
+    - linkage: 'ward', 'complete', 'average' (tested)
+    - metric: 'euclidean'
+
+Algorithm Steps:
+    1. Start with n clusters (each point is a cluster)
+    2. Compute distance matrix between all clusters
+    3. Merge closest pair of clusters
+    4. Update distance matrix
+    5. Repeat until k clusters remain
+
+Time Complexity: O(n³) or O(n² log n) with optimized implementations
+Space Complexity: O(n²) for distance matrix
+
+ALGORITHM 3: DBSCAN
+-------------------
+Implementation: sklearn.cluster.DBSCAN
+
+Parameters Tested:
+    - eps: [0.3, 0.5, 0.7, 1.0]
+    - min_samples: [3, 5, 7, 10]
+    - metric: 'euclidean'
+
+Algorithm Steps:
+    1. Find all core points (≥ min_samples within eps)
+    2. Connect core points within eps of each other
+    3. Assign border points to nearby clusters
+    4. Mark noise points as -1
+
+Time Complexity: O(n log n) with spatial indexing, O(n²) worst case
+Space Complexity: O(n)
+
+Advantage: Discovers arbitrarily shaped clusters, identifies noise
+Limitation: Sensitive to parameter choices
+
+ALGORITHM 4: STANDARD SCALER
+----------------------------
+Implementation: sklearn.preprocessing.StandardScaler
+
+Formula: z = (x - μ) / σ
+    x = original value
+    μ = mean of feature (computed on training set)
+    σ = standard deviation of feature (computed on training set)
+
+Purpose: Normalize features to zero mean and unit variance
+Why: Distance-based algorithms (K-Means) assume similar scales
+
+ALGORITHM 5: PCA (PRINCIPAL COMPONENT ANALYSIS)
+-----------------------------------------------
+Implementation: sklearn.decomposition.PCA
+
+Parameters Used:
+    - n_components: 2 (for visualization)
+
+Mathematical Steps:
+    1. Center data: X_centered = X - mean(X)
+    2. Compute covariance: C = (1/n) X_centered^T X_centered
+    3. Eigen decomposition: C = V Λ V^T
+    4. Select top k eigenvectors (principal components)
+    5. Project: Z = X_centered V_k
+
+Purpose: Dimensionality reduction for visualization
+Output: 2D projection preserving maximum variance
+
+================================================================================
+END OF CODE DOCUMENTATION
+================================================================================

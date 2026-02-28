@@ -47,23 +47,6 @@ KONGNYUY_FE25P028_telecom_customer_clustering/
 │   ├── cluster_profiles.csv         # Cluster statistics
 │   └── business_actions.csv         # Per-segment recommendations
 
-```
-
----
-
-## Technology Stack
-
-| Component | Version | Purpose |
-|-----------|---------|---------|
-| Python | 3.9+ | Core programming language |
-| pandas | 1.5.0+ | Data manipulation |
-| numpy | 1.23.0+ | Numerical computations |
-| scikit-learn | 1.2.0+ | ML algorithms |
-| scipy | 1.9.0+ | Statistical tests |
-| matplotlib | 3.6.0+ | Plotting |
-| seaborn | 0.12.0+ | Statistical visualizations |
-| streamlit | 1.20.0+ | Interactive dashboard |
-
 
 ---
 

@@ -2,6 +2,10 @@
 
 ## Kongnyuy Raymond Afoni (FE25P028) | University of Buea | February 2026
 
+WEB DEPLOYED ON https://share.streamlit.io/
+
+https://kongnyuyfe25p028telecomcustomerclustering-j9cf9mqxttxawytf6gh5.streamlit.app/
+
 ---
 
 ## Project Description

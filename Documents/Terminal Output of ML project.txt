@@ -1,0 +1,544 @@
+(venv) PS C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering>
+(venv) PS C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering> python main.py
+================================================================================
+                          TELECOM CUSTOMER SEGMENTATION ML PROJECT
+================================================================================
+Student: Kongnyuy Raymond Afoni (FE25P028)
+Program: Masters of Engineering in Telecommunications and Networks
+Institution: University of Buea
+Course: Artificial Intelligence and Machine Learning Fundamentals
+Instructor: Kinge Mbeke Theophane Osee
+Date: February 2026
+================================================================================
+
+================================================================================
+                                  LOADING DATA
+================================================================================
+Dataset loaded successfully!
+Shape: 7043 rows × 21 columns
+
+Missing Values:
+  TotalCharges: 11 (0.16%)
+
+Duplicate rows: 0
+
+Data Types:
+  Numerical: ['SeniorCitizen', 'tenure', 'MonthlyCharges', 'TotalCharges']
+  Categorical: ['customerID', 'gender', 'Partner', 'Dependents', 'PhoneService', 'MultipleLines', 'InternetService', 'OnlineSecurity', 'OnlineBackup', 'DeviceProtection', 'TechSupport', 'StreamingTV', 'StreamingMovies', 'Contract', 'PaperlessBilling', 'PaymentMethod', 'Churn']
+
+Churn Distribution:
+  No: 5174 (73.5%)
+  Yes: 1869 (26.5%)
+
+================================================================================
+                          TRAIN/VALIDATION/TEST SPLIT
+================================================================================
+Split completed with stratification on 'Churn'
+
+Split sizes:
+  Train: 4225 records (60.0%)
+  Validation: 1409 records (20.0%)
+  Test: 1409 records (20.0%)
+
+Churn rate by split:
+  Overall: 26.5%
+  Train: 26.5%
+  Validation: 26.5%
+  Test: 26.5%
+
+------------------------------------------------------------
+Split Integrity Check
+------------------------------------------------------------
+No overlapping IDs found.
+All 7043 records are unique across splits.
+
+================================================================================
+                           EXPLORATORY DATA ANALYSIS
+================================================================================
+
+Generating EDA Composite Figure 1: Customer Demographics and Tenure...
+  Saved: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures\eda_composite_1.png
+
+Generating EDA Composite Figure 2: Service Adoption and Contracts...
+  Saved: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures\eda_composite_2.png
+
+Generating EDA Composite Figure 3: Relationships and Outliers...
+  Saved: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures\eda_composite_3.png
+
+EDA complete! Generated 3 composite figures.
+
+------------------------------------------------------------
+Outlier Analysis (IQR Method)
+------------------------------------------------------------
+  tenure: 0 outliers (0.00%)
+    Bounds: [-61.50, 126.50]
+  MonthlyCharges: 0 outliers (0.00%)
+    Bounds: [-45.25, 170.75]
+  TotalCharges: 0 outliers (0.00%)
+    Bounds: [-4784.22, 9003.17]
+
+Note: Outliers are kept as they represent legitimate customer behaviors.
+
+------------------------------------------------------------
+Fitting Preprocessor on Training Set
+------------------------------------------------------------
+  High-value thresholds computed:
+    MonthlyCharges > 89.75
+    tenure > 56.00
+  StandardScaler fitted on 5 numerical features
+  Total features after preprocessing: 35
+
+================================================================================
+                            PREPROCESSING ALL SPLITS
+================================================================================
+
+Processing train set...
+  Shape: (4225, 37)
+
+Processing validation set...
+  Shape: (1409, 37)
+
+Processing test set...
+  Shape: (1409, 37)
+
+Preprocessing Summary:
+  Original features: 19
+  Processed features: 35
+  New engineered features: 16
+
+================================================================================
+                        MODEL SELECTION (Validation Set)
+================================================================================
+
+================================================================================
+EVALUATING THREE CLUSTERING ALGORITHMS
+================================================================================
+
+Algorithms to Evaluate:
+  1. K-Means: Partition-based clustering
+  2. Agglomerative Hierarchical Clustering
+  3. DBSCAN: Density-based clustering
+
+Validation Metrics:
+  - Silhouette Score: Measures cluster cohesion and separation
+  - Davies-Bouldin Index: Ratio of within-cluster scatter to between-cluster separation
+  - Calinski-Harabasz Index: Ratio of between-cluster to within-cluster dispersion
+
+================================================================================
+
+------------------------------------------------------------
+K-MEANS CLUSTERING EVALUATION
+------------------------------------------------------------
+
+Algorithm: K-Means with k-means++ initialization
+Objective: Minimize within-cluster sum of squares
+Formula: J = Σ(i=1 to n) Σ(k=1 to K) r_ik ||x_i - μ_k||²
+
+Evaluating K values from 2 to 10...
+================================================================================
+
+K     Silhouette      Davies-Bouldin     Calinski-Harabasz    Inertia
+--------------------------------------------------------------------------------
+2     0.2450          1.5494             567.83               13061.69
+3     0.2524          1.4473             549.46               10290.26
+4     0.2401          1.5443             453.47               9314.34
+5     0.1965          1.6384             400.90               8558.20
+6     0.1922          1.6242             367.83               7933.32
+7     0.1854          1.7024             339.70               7471.32
+8     0.1920          1.6221             320.14               7052.41
+9     0.1894          1.5435             301.24               6736.63
+10    0.1707          1.6558             283.26               6495.89
+================================================================================
+
+K-Means Results Summary:
+  Optimal K by Silhouette Score: K=3 (Score=0.2524)
+  Interpretation: Higher silhouette = better defined clusters
+  Range: [-1, 1] where 1 = perfect clustering, 0 = overlapping, -1 = wrong assignment
+
+================================================================================
+
+------------------------------------------------------------
+AGGLOMERATIVE HIERARCHICAL CLUSTERING EVALUATION
+------------------------------------------------------------
+
+Algorithm: Bottom-up hierarchical clustering
+Approach: Iteratively merge closest clusters until K clusters remain
+
+Linkage Methods Explained:
+  - Ward: Minimizes variance increase (best for K-Means-like objectives)
+  - Complete: Uses maximum distance (produces compact clusters)
+  - Average: Uses average distance (balanced approach)
+
+Evaluating K values from 2 to 10 for each linkage...
+
+============================================================
+LINKAGE METHOD: WARD
+============================================================
+
+K     Silhouette      Davies-Bouldin     Calinski-Harabasz
+------------------------------------------------------------
+2     0.2646          1.3059             458.18
+3     0.2067          1.5253             444.22
+4     0.2128          1.6300             407.25
+5     0.1842          1.8271             363.82
+6     0.1728          1.7894             330.53
+7     0.1699          1.7692             303.63
+8     0.1629          1.7030             281.37
+9     0.1452          1.8394             265.69
+10    0.1430          1.8224             252.76
+
+  Best K for ward linkage: K=2 (Silhouette=0.2646)
+
+============================================================
+LINKAGE METHOD: COMPLETE
+============================================================
+
+K     Silhouette      Davies-Bouldin     Calinski-Harabasz
+------------------------------------------------------------
+2     0.2269          1.6205             520.08
+3     0.1324          1.9234             357.08
+4     0.1690          1.9816             402.74
+5     0.1639          1.9313             342.73
+6     0.1620          1.8178             314.30
+7     0.1588          1.7828             283.66
+8     0.1566          1.7830             254.07
+9     0.1472          1.7679             232.02
+10    0.1534          1.7430             234.69
+
+  Best K for complete linkage: K=2 (Silhouette=0.2269)
+
+============================================================
+LINKAGE METHOD: AVERAGE
+============================================================
+
+K     Silhouette      Davies-Bouldin     Calinski-Harabasz
+------------------------------------------------------------
+2     0.2646          1.3059             458.18
+3     0.2289          1.4400             481.52
+4     0.2254          1.5802             416.86
+5     0.2109          1.5773             338.62
+6     0.1919          1.7963             281.63
+7     0.1835          1.8543             257.17
+8     0.1754          1.8243             250.46
+9     0.1719          1.8389             263.12
+10    0.1712          1.8017             245.06
+
+  Best K for average linkage: K=2 (Silhouette=0.2646)
+
+============================================================
+AGGLOMERATIVE SUMMARY:
+  Best Linkage Method: ward
+  Best Silhouette Score: 0.2646
+============================================================
+
+================================================================================
+
+------------------------------------------------------------
+DBSCAN (DENSITY-BASED CLUSTERING) EVALUATION
+------------------------------------------------------------
+
+Algorithm: Density-Based Spatial Clustering of Applications with Noise
+Key Parameters:
+  - eps (ε): Neighborhood radius
+  - min_samples: Minimum points to form a dense region
+
+Key Concepts:
+  - Core Point: Has ≥ min_samples neighbors within eps
+  - Border Point: Within eps of core point
+  - Noise Point: Neither core nor border (outlier)
+
+Grid Search: eps ∈ [0.3, 0.5, 0.7, 1.0], min_samples ∈ [3, 5, 7, 10]
+================================================================================
+
+eps      min_samp   clusters   silhouette      noise_pts    noise_%
+--------------------------------------------------------------------------------
+0.3      3          16         0.8791          1339         95.0
+0.3      5          2          0.8254          1384         98.2
+0.3      7          2          0.8254          1384         98.2
+0.3      10         2          0.8254          1384         98.2
+0.5      3          25         0.8021          1307         92.8
+0.5      5          4          0.8531          1374         97.5
+0.5      7          2          0.8254          1384         98.2
+0.5      10         2          0.8254          1384         98.2
+0.7      3          28         0.7896          1298         92.1
+0.7      5          4          0.8531          1374         97.5
+0.7      7          2          0.8254          1384         98.2
+0.7      10         2          0.8254          1384         98.2
+1.0      3          31         0.6605          1280         90.8
+1.0      5          4          0.7830          1364         96.8
+1.0      7          1          N/A             1382         98.1
+1.0      10         1          N/A             1382         98.1
+================================================================================
+
+DBSCAN Results Summary:
+  Best Parameters: eps=0.3, min_samples=3
+  Clusters Found: 16
+  Best Silhouette Score: 0.8791
+
+================================================================================
+GENERATING MODEL SELECTION VISUALIZATIONS
+================================================================================
+  ✓ Saved: K-Means silhouette plot
+  ✓ Saved: Agglomerative silhouette plot
+  ✓ Saved: DBSCAN parameter heatmap
+  ✓ Saved: Elbow method plot
+  ✓ Saved: Algorithm comparison plot
+
+================================================================================
+
+------------------------------------------------------------
+BUSINESS-DRIVEN MODEL SELECTION
+------------------------------------------------------------
+
+================================================================================
+APPLYING BUSINESS RULES TO SELECT FINAL MODEL
+================================================================================
+
+Mathematical Analysis:
+  K-Means optimal K: 3 (Silhouette: 0.2524)
+  Agglomerative optimal: K=2 with ward linkage (Silhouette: 0.2646)
+
+Business Rules Application:
+  Rule 1: K=1 is INVALID (no segmentation possible)
+  Rule 2: K=2 is TOO TRIVIAL (only high/low value split)
+  Rule 3: K>6 is TOO GRANULAR (operationally difficult)
+
+================================================================================
+FINAL SELECTION:
+================================================================================
+  Algorithm: K-Means
+  Number of Clusters (K): 3
+
+  No override needed - mathematical optimum aligns with business needs
+================================================================================
+
+Selected Model: K-Means with K=3
+
+================================================================================
+                      FINAL MODEL TRAINING AND EVALUATION
+================================================================================
+
+============================================================
+STEP 1: TRAINING ON TRAINING SET ONLY
+============================================================
+Training samples: 4225
+
+Training final K-Means model with K=3...
+  ✓ Model trained successfully
+  ✓ Inertia (Within-cluster sum of squares): 30441.18
+  ✓ Iterations to convergence: 9
+
+------------------------------------------------------------
+VALIDATION SET EVALUATION
+------------------------------------------------------------
+
+============================================================
+Validation SET EVALUATION RESULTS
+============================================================
+  Samples: 1409
+  Clusters: 3
+
+Internal Validation Metrics:
+  1. Silhouette Score: 0.2520
+     Interpretation: Reasonable cluster structure
+  2. Davies-Bouldin Index: 1.4480
+     Interpretation: Lower is better (compact, well-separated clusters)
+  3. Calinski-Harabasz Index: 549.26
+     Interpretation: Higher is better (distinct clusters)
+============================================================
+
+✓ Training on training set completed. Validation metrics printed above.
+
+============================================================
+STEP 2: RETRAINING ON TRAIN + VALIDATION COMBINED
+============================================================
+Combined training samples: 5634
+
+Training final K-Means model with K=3...
+  ✓ Model trained successfully
+  ✓ Inertia (Within-cluster sum of squares): 40756.90
+  ✓ Iterations to convergence: 7
+
+✓ Final model trained on train+val. Proceeding to test set evaluation...
+
+============================================================
+TEST SET EVALUATION
+============================================================
+Test samples: 1409
+Note: Test set was held out during model selection and training
+
+============================================================
+Test SET EVALUATION RESULTS
+============================================================
+  Samples: 1409
+  Clusters: 3
+
+Internal Validation Metrics:
+  1. Silhouette Score: 0.2629
+     Interpretation: Reasonable cluster structure
+  2. Davies-Bouldin Index: 1.4154
+     Interpretation: Lower is better (compact, well-separated clusters)
+  3. Calinski-Harabasz Index: 551.42
+     Interpretation: Higher is better (distinct clusters)
+============================================================
+
+============================================================
+EXTERNAL VALIDATION (Using Churn as Proxy)
+============================================================
+
+Purpose: Validate that clusters have business meaning
+Method: Test association between cluster assignment and churn
+
+Overall Churn Rate: 26.54%
+
+Cluster    Size     Churned    Churn Rate      95% CI
+----------------------------------------------------------------------
+0          446      62         13.90          [11.0% - 17.4%]
+1          314      25         7.96           [5.5% - 11.5%]
+2          649      287        44.22          [40.4% - 48.1%]
+
+------------------------------------------------------------
+Chi-Square Test of Independence
+------------------------------------------------------------
+H0: Cluster assignment and churn are independent
+H1: Cluster assignment and churn are associated
+
+Test Results:
+  χ² statistic: 196.19
+  Degrees of freedom: 2
+  p-value: 2.50e-43
+  Cramer's V: 0.371
+
+Interpretation:
+  ✓ HIGHLY SIGNIFICANT association (p < 0.001)
+  ✓ Clusters have strong business meaning
+
+Effect Size (Cramer's V):
+  Medium effect (0.3 ≤ V < 0.5)
+============================================================
+
+================================================================================
+                      CLUSTER PROFILING AND INTERPRETATION
+================================================================================
+
+------------------------------------------------------------
+ANOVA F-Statistics for Feature Discrimination
+------------------------------------------------------------
+
+Top 10 Discriminating Features:
+  MonthlyCharges: F=5920.97, p=0.00e+00 *
+  tenure: F=3248.66, p=0.00e+00 *
+  SeniorCitizen: F=98.68, p=7.55e-43 *
+  TotalCharges: F=nan, p=nan
+
+------------------------------------------------------------
+Cluster Characterization
+------------------------------------------------------------
+
+Cluster sizes:
+  Cluster 0: 1939 customers (34.4%)
+  Cluster 1: 1218 customers (21.6%)
+  Cluster 2: 2477 customers (44.0%)
+
+------------------------------------------------------------
+Assigning Empirical Cluster Names
+------------------------------------------------------------
+  Cluster 0: 'Premium Loyal'
+    (tenure=56.0, charges=$88.90, churn=15.3%, services=3.9)
+  Cluster 1: 'Budget Established'
+    (tenure=30.2, charges=$21.15, churn=7.2%, services=0.0)
+  Cluster 2: 'Standard Established'
+    (tenure=15.2, charges=$67.69, churn=44.8%, services=1.6)
+
+------------------------------------------------------------
+Generating Business Action Matrix
+------------------------------------------------------------
+
+Business Actions Generated:
+
+  Premium Loyal:
+    Insight: Long-tenure loyal customers; High spenders
+    Marketing: Premium upselling and loyalty rewards
+    Retention: Loyalty rewards: referral bonuses, exclusive benefits
+
+  Budget Established:
+    Insight: Low churn risk (7%); Price-sensitive; Basic service users
+    Marketing: Cross-selling campaign for add-on services
+    Retention: Loyalty rewards: referral bonuses, exclusive benefits
+
+  Standard Established:
+    Insight: High churn risk (45%); Basic service users
+    Marketing: Urgent retention campaign with personalized offers
+    Retention: Immediate intervention: dedicated retention team, contract incentives
+
+Generating profiling plots...
+
+------------------------------------------------------------
+Generating Radar Chart
+------------------------------------------------------------
+Top 5 discriminating features: ['MonthlyCharges', 'tenure', 'SeniorCitizen', 'TotalCharges']
+  Saved: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures\23_radar_chart.png
+
+------------------------------------------------------------
+Generating Feature Importance Plot
+------------------------------------------------------------
+  Saved: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures\24_feature_importance_bar.png
+
+Cluster profiles saved to: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\cluster_profiles.csv
+Business actions saved to: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\business_actions.csv
+
+============================================================
+GENERATING TEST EVALUATION VISUALIZATIONS
+============================================================
+
+  Generating: Churn Rate by Cluster...
+  ✓ Saved: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures\18_churn_rate_by_cluster.png
+
+  Generating: PCA Projection...
+  ✓ Saved: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures\19_pca_projection_test.png
+
+  Generating: Cluster Centroids Heatmap...
+  ✓ Saved: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures\20_cluster_centroids_heatmap.png
+
+  Generating: Per-Sample Silhouette Plot...
+  ✓ Saved: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures\21_silhouette_per_sample.png
+
+  Generating: Cluster Size Distribution...
+  ✓ Saved: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures\22_cluster_size_pie.png
+
+✓ All test evaluation visualizations generated successfully
+
+================================================================================
+                          PIPELINE EXECUTION COMPLETE
+================================================================================
+
+Generated Outputs:
+  Models: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\models\final_model.pkl
+  Preprocessor: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\models\preprocessor.pkl
+  Cluster Profiles: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\cluster_profiles.csv
+  Business Actions: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\business_actions.csv
+  Figures: C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering\reports\figures
+
+Key Results:
+  Selected Algorithm: K-Means
+  Number of Clusters: 3
+  Test Silhouette Score: 0.2629
+  Test Davies-Bouldin Index: 1.4154
+  Chi-square p-value: 2.50e-43
+
+Cluster Names:
+  Cluster 0: Premium Loyal
+  Cluster 1: Budget Established
+  Cluster 2: Standard Established
+
+Next Steps:
+ Run 'streamlit run dashboard.py' to launch the interactive dashboard
+(venv) PS C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering>
+(venv) PS C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering>
+(venv) PS C:\Users\raymo\Desktop\KONGNYUY_FE25P028_telecom_customer_clustering> streamlit run dashboard.py
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8501
+  Network URL: http://192.168.1.158:8501
+

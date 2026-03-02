@@ -282,17 +282,7 @@ class TelecomPreprocessor:
 
 
 def detect_outliers(df: pd.DataFrame, columns: List[str]) -> Dict[str, Dict]:
-    """
-    Detect outliers using IQR method.
-    For information only - outliers are kept as they represent real customers.
     
-    Args:
-        df: DataFrame
-        columns: Columns to check for outliers
-        
-    Returns:
-        Dictionary with outlier information for each column
-    """
     print_section("Outlier Analysis (IQR Method)")
     
     outlier_info = {}

@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-"""
-Streamlit Dashboard for Telecom Customer Segmentation.
-Provides interactive customer segment prediction and visualization.
-
-Student: Kongnyuy Raymond Afoni (FE25P028)
-Course: Artificial Intelligence and Machine Learning Fundamentals
-Institution: University of Buea
-Date: February 2026
-"""
 
 import streamlit as st
 import pandas as pd

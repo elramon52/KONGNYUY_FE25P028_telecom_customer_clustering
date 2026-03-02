@@ -28,7 +28,7 @@ class TelecomPreprocessor:
     - Categorical encoding (one-hot and ordinal)
     - Feature scaling (StandardScaler)
     
-    All statistics computed on training set only to prevent data leakage.
+    All statistics computed on training set only to prevent data leakage..
     """
     
     def __init__(self):

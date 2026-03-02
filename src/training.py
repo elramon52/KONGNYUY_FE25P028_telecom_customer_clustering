@@ -269,10 +269,7 @@ def plot_churn_by_cluster(cluster_churn: Dict, cluster_names: Dict[int, str] = N
     Plot churn rate by cluster with confidence intervals.
     
     Visualization Purpose:
-    ----------------------
-    Shows how churn rates differ across clusters, validating that segments
-    represent genuinely different customer types with varying risk levels.
-    
+   
     Args:
         cluster_churn: Dictionary with churn rates per cluster
         cluster_names: Dictionary mapping cluster_id to name
